@@ -1,4 +1,4 @@
-package me.drex.invview.util;
+package me.drex.invview.util.inventory;
 
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
@@ -18,10 +18,6 @@ public class SavedInventory extends PlayerInventory {
     @Override
     public int size() {
         return 45;
-    }
-
-    public int remove(Predicate<ItemStack> shouldRemove, int maxCount, Inventory craftingInventory) {
-        return 0;
     }
 
     @Override

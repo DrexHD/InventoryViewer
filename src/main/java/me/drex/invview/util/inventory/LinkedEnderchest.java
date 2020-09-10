@@ -1,4 +1,4 @@
-package me.drex.invview.util;
+package me.drex.invview.util.inventory;
 
 import me.drex.invview.InvView;
 import net.minecraft.entity.player.PlayerEntity;
