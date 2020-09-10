@@ -1,6 +1,6 @@
 package me.drex.invview.util.inventory;
 
-import me.drex.invview.InvView;
+import me.drex.invview.InventoryManager;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.EnderChestInventory;
 import net.minecraft.item.ItemStack;
@@ -19,7 +19,7 @@ public class LinkedEnderchest extends EnderChestInventory {
 
     @Override
     public void onClose(PlayerEntity player) {
-        InvView.savePlayerData(target);
+        InventoryManager.savePlayerData(target);
     }
 
     @Override

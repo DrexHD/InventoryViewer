@@ -4,7 +4,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
-import me.drex.invview.InvView;
 
 public class LinkedInventory extends PlayerInventory {
 
@@ -25,7 +24,7 @@ public class LinkedInventory extends PlayerInventory {
 
     @Override
     public void onClose(PlayerEntity player) {
-        InvView.savePlayerData(this.target);
+//        InvView.savePlayerData(this.target);
     }
 
     @Override

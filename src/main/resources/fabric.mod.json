@@ -18,7 +18,7 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "us.potatoboy.invview.InvView"
+      "me.drex.invview.InvView"
     ]
   },
   "mixins": [
@@ -27,6 +27,6 @@
   "depends": {
     "fabricloader": ">=0.7.2",
     "fabric": "*",
-    "minecraft": ">=1.16.2"
+    "minecraft": ">=1.16.3"
   }
 }
