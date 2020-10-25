@@ -21,7 +21,7 @@ import java.io.IOException;
 public class InventoryManager {
 
     public static MinecraftServer minecraftServer = InvView.getMinecraftServer();
-    private static final File SAVE_PATH = new File(InvView.getDirectory() + "/world/inventories");
+    private static final File SAVE_PATH = new File(InvView.getDirectory() + "/inventories");
 
     public static void savePlayerData(ServerPlayerEntity player) {
         File playerDataDir = minecraftServer.getSavePath(WorldSavePath.PLAYERDATA).toFile();
