@@ -3,18 +3,15 @@
   "id": "invview",
   "version": "${version}",
   "name": "InvView",
-  "description": "Allows you to open the inventory and ender chest of online and offline players",
+  "description": "Allows you to load, save and open inventory and ender chest of online and offline players (original Author: Potatoboy9999)",
   "authors": [
-    "Potatoboy9999"
+    "DrexHD"
   ],
   "contact": {
-    "website": "https://www.curseforge.com/minecraft/mc-mods/inv-view",
-    "sources": "https://github.com/PotatoPresident/InvView",
-    "issues": "https://github.com/PotatoPresident/InvView/issues",
-    "homepage": "https://www.curseforge.com/minecraft/mc-mods/inv-view"
+    "sources": "https://github.com/DrexHD/InventoryViewer",
+    "issues": "https://github.com/DrexHD/InventoryViewer/issues"
   },
   "license": "MIT",
-  "icon": "logo.png",
   "environment": "*",
   "entrypoints": {
     "main": [

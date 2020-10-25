@@ -38,7 +38,6 @@ public class InvView implements ModInitializer {
 
     private void onLogicalServerStarting(MinecraftServer server) {
         minecraftServer = server;
-        System.out.println("Server is set! " + server);
     }
 
 

@@ -1,5 +1,6 @@
-package me.drex.invview.util.inventory;
+package me.drex.invview.inventory;
 
+import me.drex.invview.InventoryManager;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -24,7 +25,7 @@ public class LinkedInventory extends PlayerInventory {
 
     @Override
     public void onClose(PlayerEntity player) {
-//        InvView.savePlayerData(this.target);
+        InventoryManager.savePlayerData(target);
     }
 
     @Override
