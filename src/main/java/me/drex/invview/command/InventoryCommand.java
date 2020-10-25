@@ -35,10 +35,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.collection.DefaultedList;
 
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.word;
 import static net.minecraft.server.command.CommandManager.argument;
@@ -118,23 +115,11 @@ public class InventoryCommand {
         MutableText text = new LiteralText("-[").formatted(Formatting.GOLD)
                 .append(new LiteralText(target.getEntityName() + "'s saved inventories").formatted(Formatting.YELLOW)
                         .append(new LiteralText("]-").formatted(Formatting.GOLD)));
-        int maxItems = 20;
         int i = 1;
         for (SaveableEntry entry : entryList) {
-            MutableText items = new LiteralText("");
-            int itemCount = 0;
-            List<DefaultedList<ItemStack>> combined = ImmutableList.of(entry.inventory.main, entry.inventory.armor, entry.inventory.offHand);
-            for (DefaultedList<ItemStack> itemStacks : combined) {
-                for (ItemStack itemStack : itemStacks) {
-                    if (itemStack == ItemStack.EMPTY) continue;
-                    if (itemCount < maxItems) {
-                        items.append(itemStack.getName()).append(new LiteralText("\n"));
-                    }
-                    itemCount++;
-                }
-            }
-            if (itemCount > maxItems) {
-                items.append(new LiteralText("... and " + (itemCount - maxItems) + " more ...").formatted(Formatting.GRAY));
+            DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(27, ItemStack.EMPTY);
+            for (int j = 0; j < 27; j++) {
+                defaultedList.set(j, entry.enderChest.getStack(j));
             }
 
             int finalI = i;
@@ -145,24 +130,58 @@ public class InventoryCommand {
                     .append(new LiteralText(" (").formatted(Formatting.YELLOW))
                     .append(new LiteralText(entry.reason.substring(0, 1).toUpperCase() + entry.reason.substring(1)).formatted(Formatting.GOLD))
                     .append(new LiteralText(") ").formatted(Formatting.YELLOW))
-                    .append(new LiteralText(String.valueOf(itemCount)).formatted(Formatting.GOLD).append(new LiteralText(" items ").formatted(Formatting.YELLOW)).styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, items))))
-                    .append(new LiteralText("[").formatted(Formatting.WHITE))
-                    .append(new LiteralText("L").formatted(Formatting.GREEN)
+                    .append(new LiteralText("Inv: (").formatted(Formatting.YELLOW))
+                    .append(formatInventory(ImmutableList.of(entry.inventory.main, entry.inventory.armor, entry.inventory.offHand)))
+                    .append(new LiteralText(" load ").formatted(Formatting.LIGHT_PURPLE)
                             .styled(style -> style
                                     .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to load this inventory for ").formatted(Formatting.YELLOW).append(new LiteralText(target.getEntityName()).formatted(Formatting.GOLD))))
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 load " + target.getEntityName() + " " + (finalI - 1)))))
-                    .append(new LiteralText("] ").formatted(Formatting.WHITE))
-                    .append(new LiteralText("[").formatted(Formatting.WHITE))
-                    .append(new LiteralText("O").formatted(Formatting.AQUA)
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 load " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
+                    .append(new LiteralText("open").formatted(Formatting.AQUA)
                             .styled(style -> style
                                     .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this inventory").formatted(Formatting.YELLOW)))
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 open inv " + target.getEntityName() + " " + (finalI - 1)))))
-                    .append(new LiteralText("]").formatted(Formatting.WHITE));
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 open inv " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
+                    .append(new LiteralText(") EC: (").formatted(Formatting.YELLOW))
+                    .append(formatInventory(Collections.singletonList(defaultedList)))
+                    .append(new LiteralText(" open").formatted(Formatting.AQUA)
+                            .styled(style -> style
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this enderchest").formatted(Formatting.YELLOW)))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 open echest " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
+                    .append(new LiteralText(")").formatted(Formatting.YELLOW));
             i++;
         }
 
         source.sendFeedback(text, false);
         return 1;
+    }
+
+    public static Text formatInventory(List<DefaultedList<ItemStack>> itemList) {
+        int maxItems = 20;
+        MutableText hover = new LiteralText("");
+        int itemCount = 0;
+        for (DefaultedList<ItemStack> itemStacks : itemList) {
+            for (ItemStack itemStack : itemStacks) {
+                if (itemStack == ItemStack.EMPTY) continue;
+                if (itemCount < maxItems) {
+                    hover.append(itemStack.getName()).append(new LiteralText("\n"));
+                }
+                itemCount++;
+            }
+        }
+        if (itemCount > maxItems) {
+            hover.append(new LiteralText("... and " + (itemCount - maxItems) + " more ...").formatted(Formatting.GRAY));
+        }
+        return new LiteralText(String.valueOf(itemCount)).formatted(Formatting.GOLD).append(new LiteralText(" items").formatted(Formatting.YELLOW)).styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover)));
+    }
+
+    public static int getItemCount(List<DefaultedList<ItemStack>> itemList) {
+        int itemCount = 0;
+        for (DefaultedList<ItemStack> itemStacks : itemList) {
+            for (ItemStack itemStack : itemStacks) {
+                if (itemStack == ItemStack.EMPTY) continue;
+                itemCount++;
+            }
+        }
+        return itemCount;
     }
 
     private static int open(ServerCommandSource source, Collection<GameProfile> targets, InventoryType inventoryType, int id, @Nullable Collection<GameProfile> openers) throws CommandSyntaxException {
