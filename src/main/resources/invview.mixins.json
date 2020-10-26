@@ -4,7 +4,8 @@
   "package": "me.drex.invview.mixin",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-    "LevelStorageSessionMixin"
+    "LevelStorageSessionMixin",
+    "ServerPlayerEntityMixin"
   ],
   "client": [
   ],
