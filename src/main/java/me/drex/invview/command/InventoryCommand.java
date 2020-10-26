@@ -1,6 +1,7 @@
 package me.drex.invview.command;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -155,33 +156,25 @@ public class InventoryCommand {
     }
 
     public static Text formatInventory(List<DefaultedList<ItemStack>> itemList) {
-        int maxItems = 20;
+        int maxItems = 25;
+        List<Formatting> formattings = Arrays.asList(Formatting.AQUA, Formatting.YELLOW, Formatting.RED);
         MutableText hover = new LiteralText("");
         int itemCount = 0;
+        int i = 0;
         for (DefaultedList<ItemStack> itemStacks : itemList) {
             for (ItemStack itemStack : itemStacks) {
                 if (itemStack == ItemStack.EMPTY) continue;
                 if (itemCount < maxItems) {
-                    hover.append(itemStack.getName()).append(new LiteralText("\n"));
+                    hover.append(((MutableText)itemStack.getName()).formatted(formattings.get(i))).append(new LiteralText("\n"));
                 }
                 itemCount++;
             }
+            i++;
         }
         if (itemCount > maxItems) {
             hover.append(new LiteralText("... and " + (itemCount - maxItems) + " more ...").formatted(Formatting.GRAY));
         }
         return new LiteralText(String.valueOf(itemCount)).formatted(Formatting.GOLD).append(new LiteralText(" items").formatted(Formatting.YELLOW)).styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover)));
-    }
-
-    public static int getItemCount(List<DefaultedList<ItemStack>> itemList) {
-        int itemCount = 0;
-        for (DefaultedList<ItemStack> itemStacks : itemList) {
-            for (ItemStack itemStack : itemStacks) {
-                if (itemStack == ItemStack.EMPTY) continue;
-                itemCount++;
-            }
-        }
-        return itemCount;
     }
 
     private static int open(ServerCommandSource source, Collection<GameProfile> targets, InventoryType inventoryType, int id, @Nullable Collection<GameProfile> openers) throws CommandSyntaxException {
