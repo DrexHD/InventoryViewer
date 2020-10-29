@@ -58,9 +58,12 @@ public class InventoryCommand {
             inventory.then(save);
         }
         {
+            final RequiredArgumentBuilder<ServerCommandSource, Integer> page = RequiredArgumentBuilder.argument("page", IntegerArgumentType.integer(1));
+            page.executes(ctx -> list(ctx.getSource(), GameProfileArgumentType.getProfileArgument(ctx, "target"), IntegerArgumentType.getInteger(ctx, "page")));
             final RequiredArgumentBuilder<ServerCommandSource, GameProfileArgumentType.GameProfileArgument> target = RequiredArgumentBuilder.argument("target", GameProfileArgumentType.gameProfile());
+            target.executes(ctx -> list(ctx.getSource(), GameProfileArgumentType.getProfileArgument(ctx, "target"), 0));
             final LiteralArgumentBuilder<ServerCommandSource> list = LiteralArgumentBuilder.literal("list");
-            target.executes(ctx -> list(ctx.getSource(), GameProfileArgumentType.getProfileArgument(ctx, "target")));
+            target.then(page);
             list.then(target);
             inventory.then(list);
         }
@@ -110,14 +113,22 @@ public class InventoryCommand {
         return 1;
     }
 
-    private static int list(ServerCommandSource source, Collection<GameProfile> targets) {
+    private static int list(ServerCommandSource source, Collection<GameProfile> targets, int page) {
+        page--;
         ServerPlayerEntity target = getPlayer(targets);
         List<SaveableEntry> entryList = EntryManager.instance.getEntries(target.getUuid());
+        int entriesPerPage = 5;
+        int entries = entryList.size();
+        int maxPage = (entries - 1) / entriesPerPage;
+        page = page == -1 ? maxPage : page;
+        //index
+        int from = page * entriesPerPage;
+        int to = Math.min(((page + 1) * entriesPerPage), entries);
         MutableText text = new LiteralText("-[").formatted(Formatting.GOLD)
                 .append(new LiteralText(target.getEntityName() + "'s saved inventories").formatted(Formatting.YELLOW)
                         .append(new LiteralText("]-").formatted(Formatting.GOLD)));
-        int i = 1;
-        for (SaveableEntry entry : entryList) {
+        int i = from + 1;
+        for (SaveableEntry entry : entryList.subList(from, to)) {
             DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(27, ItemStack.EMPTY);
             for (int j = 0; j < 27; j++) {
                 defaultedList.set(j, entry.enderChest.getStack(j));
