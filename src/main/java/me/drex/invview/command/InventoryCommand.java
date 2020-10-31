@@ -49,7 +49,7 @@ public class InventoryCommand {
     };
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        final LiteralArgumentBuilder<ServerCommandSource> inventory = LiteralArgumentBuilder.literal("inventory2");
+        final LiteralArgumentBuilder<ServerCommandSource> inventory = LiteralArgumentBuilder.literal("invview");
         {
             final RequiredArgumentBuilder<ServerCommandSource, GameProfileArgumentType.GameProfileArgument> target = RequiredArgumentBuilder.argument("target", GameProfileArgumentType.gameProfile());
             final LiteralArgumentBuilder<ServerCommandSource> save = LiteralArgumentBuilder.literal("save");
@@ -125,7 +125,7 @@ public class InventoryCommand {
         int from = page * entriesPerPage;
         int to = Math.min(((page + 1) * entriesPerPage), entries);
         MutableText text = new LiteralText("-[").formatted(Formatting.GOLD)
-                .append(new LiteralText(target.getEntityName() + "'s saved inventories").formatted(Formatting.YELLOW)
+                .append(new LiteralText(target.getEntityName() + "'s saved inventories").formatted(Formatting.GREEN)
                         .append(new LiteralText("]-").formatted(Formatting.GOLD)));
         int i = from + 1;
         for (SaveableEntry entry : entryList.subList(from, to)) {
@@ -147,20 +147,30 @@ public class InventoryCommand {
                     .append(new LiteralText(" load ").formatted(Formatting.LIGHT_PURPLE)
                             .styled(style -> style
                                     .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to load this inventory for ").formatted(Formatting.YELLOW).append(new LiteralText(target.getEntityName()).formatted(Formatting.GOLD))))
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 load " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview load " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
                     .append(new LiteralText("open").formatted(Formatting.AQUA)
                             .styled(style -> style
                                     .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this inventory").formatted(Formatting.YELLOW)))
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 open inv " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open inv " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
                     .append(new LiteralText(") EC: (").formatted(Formatting.YELLOW))
                     .append(formatInventory(Collections.singletonList(defaultedList)))
                     .append(new LiteralText(" open").formatted(Formatting.AQUA)
                             .styled(style -> style
                                     .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this enderchest").formatted(Formatting.YELLOW)))
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/inventory2 open echest " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open echest " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
                     .append(new LiteralText(")").formatted(Formatting.YELLOW));
             i++;
         }
+        int finalPage = page;
+        text.append(new LiteralText("\n<- ").formatted(Formatting.WHITE).styled(style -> style.withBold(true)))
+                .append(new LiteralText("Prev " ).formatted(page > 0 ? Formatting.GOLD : Formatting.GRAY)
+                    .styled(style -> finalPage > 0 ? style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + finalPage)) : style))
+                .append(new LiteralText(String.valueOf(finalPage + 1)).formatted(Formatting.GREEN))
+                .append(new LiteralText(" / ").formatted(Formatting.GRAY))
+                .append(new LiteralText(String.valueOf(maxPage + 1)).formatted(Formatting.GREEN))
+                .append(new LiteralText(" Next").formatted(page == maxPage ? Formatting.GRAY : Formatting.GOLD)
+                        .styled(style -> finalPage == maxPage ? style : style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + finalPage + 1))))
+                .append(new LiteralText(" ->").formatted(Formatting.WHITE).styled(style -> style.withBold(true)));
 
         source.sendFeedback(text, false);
         return 1;
