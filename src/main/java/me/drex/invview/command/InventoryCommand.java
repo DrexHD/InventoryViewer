@@ -124,7 +124,7 @@ public class InventoryCommand {
         //index
         int from = page * entriesPerPage;
         int to = Math.min(((page + 1) * entriesPerPage), entries);
-        MutableText text = new LiteralText("-[").formatted(Formatting.GOLD)
+        MutableText text = new LiteralText("\n-[").formatted(Formatting.GOLD)
                 .append(new LiteralText(target.getEntityName() + "'s saved inventories").formatted(Formatting.GREEN)
                         .append(new LiteralText("]-").formatted(Formatting.GOLD)));
         int i = from + 1;
@@ -169,7 +169,7 @@ public class InventoryCommand {
                 .append(new LiteralText(" / ").formatted(Formatting.GRAY))
                 .append(new LiteralText(String.valueOf(maxPage + 1)).formatted(Formatting.GREEN))
                 .append(new LiteralText(" Next").formatted(page == maxPage ? Formatting.GRAY : Formatting.GOLD)
-                        .styled(style -> finalPage == maxPage ? style : style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + finalPage + 1))))
+                        .styled(style -> finalPage == maxPage ? style : style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + (finalPage + 2)))))
                 .append(new LiteralText(" ->").formatted(Formatting.WHITE).styled(style -> style.withBold(true)));
 
         source.sendFeedback(text, false);
