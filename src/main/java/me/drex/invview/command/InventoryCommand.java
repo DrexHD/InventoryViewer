@@ -50,6 +50,7 @@ public class InventoryCommand {
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> inventory = LiteralArgumentBuilder.literal("invview");
+        inventory.requires(source -> source.hasPermissionLevel(2));
         {
             final RequiredArgumentBuilder<ServerCommandSource, GameProfileArgumentType.GameProfileArgument> target = RequiredArgumentBuilder.argument("target", GameProfileArgumentType.gameProfile());
             final LiteralArgumentBuilder<ServerCommandSource> save = LiteralArgumentBuilder.literal("save");
