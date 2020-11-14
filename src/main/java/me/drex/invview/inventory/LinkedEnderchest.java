@@ -48,31 +48,4 @@ public class LinkedEnderchest extends EnderChestInventory {
     public void setStack(int slot, ItemStack stack) {
         enderChestInventory.setStack(slot, stack);
     }
-
-    public int countAll(Item item) {
-        int i = 0;
-        for (int j = 0; j < enderChestInventory.size(); ++j) {
-            ItemStack itemStack = enderChestInventory.getStack(j);
-            Item item1 = itemStack.getItem();
-            if (item1.equals(item)) {
-                i += itemStack.getCount();
-            } else {
-                if (item1 instanceof BlockItem) {
-                    Block block = ((BlockItem) item1).getBlock();
-                    if (block instanceof ShulkerBoxBlock) {
-                        if (itemStack.getTag() != null) {
-                            DefaultedList<ItemStack> itemStacks = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-                            Inventories.fromTag(itemStack.getTag().getCompound("BlockEntityTag"), itemStacks);
-                            for (ItemStack itemStack2 : itemStacks) {
-                                if (itemStack2.getItem().equals(item)) {
-                                    i += itemStack2.getCount();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return i;
-    }
 }

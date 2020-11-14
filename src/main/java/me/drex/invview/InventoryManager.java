@@ -1,5 +1,12 @@
 package me.drex.invview;
 
+import net.minecraft.block.Block;
+import net.minecraft.block.ShulkerBoxBlock;
+import net.minecraft.inventory.Inventories;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
@@ -7,6 +14,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Util;
 import net.minecraft.util.WorldSavePath;
+import net.minecraft.util.collection.DefaultedList;
 import org.apache.logging.log4j.LogManager;
 
 import java.io.File;
@@ -52,6 +60,33 @@ public class InventoryManager {
         } catch (Exception e) {
             LogManager.getLogger().error("Failed to save inventory data for {}", player.getName().getString(), e);
         }
+    }
+
+    public static int countAll(Inventory inventory, Item item) {
+        int i = 0;
+        for (int j = 0; j < inventory.size(); ++j) {
+            ItemStack itemStack = inventory.getStack(j);
+            Item item1 = itemStack.getItem();
+            if (item1.equals(item)) {
+                i += itemStack.getCount();
+            } else {
+                if (item1 instanceof BlockItem) {
+                    Block block = ((BlockItem) item1).getBlock();
+                    if (block instanceof ShulkerBoxBlock) {
+                        if (itemStack.getTag() != null) {
+                            DefaultedList<ItemStack> itemStacks = DefaultedList.ofSize(inventory.size(), ItemStack.EMPTY);
+                            Inventories.fromTag(itemStack.getTag().getCompound("BlockEntityTag"), itemStacks);
+                            for (ItemStack itemStack2 : itemStacks) {
+                                if (itemStack2.getItem().equals(item)) {
+                                    i += itemStack2.getCount();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return i;
     }
 
 }

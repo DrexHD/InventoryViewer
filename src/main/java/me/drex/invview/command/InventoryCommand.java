@@ -13,6 +13,7 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import jdk.internal.jline.internal.Nullable;
 import me.drex.invview.InvView;
+import me.drex.invview.InventoryManager;
 import me.drex.invview.inventory.LinkedEnderchest;
 import me.drex.invview.inventory.LinkedInventory;
 import me.drex.invview.inventory.SavedEnderchest;
@@ -20,6 +21,7 @@ import me.drex.invview.inventory.SavedInventory;
 import me.drex.invview.manager.EntryManager;
 import me.drex.invview.manager.SaveableEntry;
 import me.drex.invview.mixin.PlayerManagerAccessor;
+import me.drex.invview.util.TextPage;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.command.argument.ItemStackArgument;
@@ -37,17 +39,19 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Pair;
 import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.util.registry.Registry;
 import net.minecraft.world.WorldSaveHandler;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.word;
 import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.server.command.CommandManager.literal;
 
 public class InventoryCommand {
 
@@ -55,6 +59,9 @@ public class InventoryCommand {
         List<String> names = Arrays.asList("echest", "inv");
         return CommandSource.suggestMatching(names, builder);
     };
+    private static TextPage cachedPage = null;
+    private static Item cachedItem = null;
+    private static int cachedAmount = 0;
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> inventory = LiteralArgumentBuilder.literal("invview");
@@ -105,12 +112,16 @@ public class InventoryCommand {
             inventory.then(open);
         }
         {
-            final RequiredArgumentBuilder<ServerCommandSource, String> type = typeArgument();
-            type.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), getInventoryType(ctx)));
+            final LiteralArgumentBuilder<ServerCommandSource> confirm = literal("confirm");
+            confirm.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), IntegerArgumentType.getInteger(ctx, "page"), true));
+            final RequiredArgumentBuilder<ServerCommandSource, Integer> page = RequiredArgumentBuilder.argument("page", IntegerArgumentType.integer(1));
+            page.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), IntegerArgumentType.getInteger(ctx, "page"), false));
             final RequiredArgumentBuilder<ServerCommandSource, Integer> amount = RequiredArgumentBuilder.argument("amount", IntegerArgumentType.integer(1));
+            amount.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), 1, false));
             final RequiredArgumentBuilder<ServerCommandSource, ItemStackArgument> item = RequiredArgumentBuilder.argument("item", ItemStackArgumentType.itemStack());
             final LiteralArgumentBuilder<ServerCommandSource> scan = LiteralArgumentBuilder.literal("scan");
-            amount.then(type);
+            page.then(confirm);
+            amount.then(page);
             item.then(amount);
             scan.then(item);
             inventory.then(scan);
@@ -125,19 +136,56 @@ public class InventoryCommand {
         return 1;
     }
 
-    private static int scan(ServerCommandSource source, Item item, int amount, InventoryType inventoryType) throws CommandSyntaxException {
-        try {
-            getAllPlayerInventoriesAsync(inventoryType.equals(InventoryType.ENDERCHEST), map -> {
-                for (Map.Entry<ServerPlayerEntity, Inventory> entry : map.entrySet()) {
-                    int count = entry.getValue() instanceof LinkedEnderchest ? ((LinkedEnderchest) entry.getValue()).countAll(item) : entry.getValue().count(item);
-                    if (count >= amount) {
-                        source.sendFeedback(new LiteralText("Found " + count + " in " + entry.getKey().getEntityName() + "'s " + inventoryType.name().toLowerCase()), false);
+    private static int scan(ServerCommandSource source, Item item, int amount, int page, boolean confirm) throws CommandSyntaxException {
+        if (confirm || cachedPage == null || (cachedItem != item) || (cachedAmount != amount)) {
+            MutableText title = new LiteralText("\n-[").formatted(Formatting.GOLD)
+                    .append(new LiteralText("Found Inventories (").formatted(Formatting.GREEN)
+                            .append(new TranslatableText(item.getTranslationKey()).formatted(Formatting.GREEN))
+                            .append(new LiteralText(")").formatted(Formatting.GREEN))
+                            .append(new LiteralText("]-").formatted(Formatting.GOLD)));
+            TextPage textPage = new TextPage(title, null, "/invview scan " + Registry.ITEM.getId(item).getPath() + " " + amount + " %s");
+            getAllPlayerInventoriesAsync(map -> {
+                for (Map.Entry<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>> entry : map.entrySet()) {
+                    int invCount = InventoryManager.countAll(entry.getValue().getLeft(), item);
+                    int eChestCount = InventoryManager.countAll(entry.getValue().getRight(), item);
+                    if (invCount >= amount) {
+                        MutableText text = new LiteralText("Found ").formatted(Formatting.YELLOW)
+                                .append(new LiteralText(String.valueOf(invCount)).formatted(Formatting.GOLD))
+                                .append(new LiteralText(" in ").formatted(Formatting.YELLOW))
+                                .append(new LiteralText(entry.getKey().getEntityName()).formatted(Formatting.GOLD))
+                                .append(new LiteralText("'s inventory ").formatted(Formatting.YELLOW))
+                                .append(new LiteralText("open").formatted(Formatting.AQUA)
+                                        .styled(style -> style
+                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this inventory").formatted(Formatting.YELLOW)))
+                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open inv " + entry.getKey().getEntityName())).withItalic(true)));
+                        textPage.addEntry(text);
+                    }
+                    if (eChestCount >= amount) {
+                        MutableText text = new LiteralText("Found ").formatted(Formatting.YELLOW)
+                                .append(new LiteralText(String.valueOf(eChestCount)).formatted(Formatting.GOLD))
+                                .append(new LiteralText(" in ").formatted(Formatting.YELLOW))
+                                .append(new LiteralText(entry.getKey().getEntityName()).formatted(Formatting.GOLD))
+                                .append(new LiteralText("'s enderchest ").formatted(Formatting.YELLOW))
+                                .append(new LiteralText("open").formatted(Formatting.AQUA)
+                                        .styled(style -> style
+                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this enderchest").formatted(Formatting.YELLOW)))
+                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open echest " + entry.getKey().getEntityName())).withItalic(true)));
+                        textPage.addEntry(text);
                     }
                 }
+                cachedPage = textPage;
+                cachedItem = item;
+                cachedAmount = amount;
+                try {
+                    textPage.sendPage(source.getPlayer(), page - 1, 5);
+                } catch (CommandSyntaxException e) {
+                    e.printStackTrace();
+                }
             });
-        } catch (ExecutionException | InterruptedException e) {
-            throw new SimpleCommandExceptionType(new LiteralText(e.getMessage())).create();
+        } else {
+            cachedPage.sendPage(source.getPlayer(), page - 1, 5);
         }
+
         return 1;
     }
 
@@ -149,32 +197,24 @@ public class InventoryCommand {
         return 1;
     }
 
-    private static int list(ServerCommandSource source, Collection<GameProfile> targets, int page) {
-        page--;
+    private static int list(ServerCommandSource source, Collection<GameProfile> targets, int page) throws CommandSyntaxException {
         ServerPlayerEntity target = getPlayer(targets);
         List<SaveableEntry> entryList = EntryManager.instance.getEntries(target.getUuid());
-        int entriesPerPage = 5;
-        int entries = entryList.size();
-        int maxPage = (entries - 1) / entriesPerPage;
-        page = page == -1 ? maxPage : page;
-        //index
-        int from = page * entriesPerPage;
-        int to = Math.min(((page + 1) * entriesPerPage), entries);
-        MutableText text = new LiteralText("\n-[").formatted(Formatting.GOLD)
+
+        MutableText title = new LiteralText("\n-[").formatted(Formatting.GOLD)
                 .append(new LiteralText(target.getEntityName() + "'s saved inventories").formatted(Formatting.GREEN)
                         .append(new LiteralText("]-").formatted(Formatting.GOLD)));
-        int i = from + 1;
-        for (SaveableEntry entry : entryList.subList(from, to)) {
+        TextPage textPage = new TextPage(title, null, "/invview list " + target.getEntityName() + " %s");
+        int i = 1;
+        for (SaveableEntry entry : entryList) {
             DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(27, ItemStack.EMPTY);
             for (int j = 0; j < 27; j++) {
                 defaultedList.set(j, entry.enderChest.getStack(j));
             }
-
             int finalI = i;
-            text.append(new LiteralText("\n" + i + ". ").formatted(Formatting.GOLD))
-                    .append(new LiteralText(new SimpleDateFormat("HH:mm:ss").format(entry.date)).formatted(Formatting.YELLOW)
-                            .styled(style -> style
-                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(new SimpleDateFormat("MMM dd yyyy").format(entry.date)).formatted(Formatting.GOLD)))))
+            MutableText text = new LiteralText(new SimpleDateFormat("HH:mm:ss").format(entry.date)).formatted(Formatting.YELLOW)
+                    .styled(style -> style
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(new SimpleDateFormat("MMM dd yyyy").format(entry.date)).formatted(Formatting.GOLD))))
                     .append(new LiteralText(" (").formatted(Formatting.YELLOW))
                     .append(new LiteralText(entry.reason.substring(0, 1).toUpperCase() + entry.reason.substring(1)).formatted(Formatting.GOLD))
                     .append(new LiteralText(") ").formatted(Formatting.YELLOW))
@@ -195,20 +235,10 @@ public class InventoryCommand {
                                     .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this enderchest").formatted(Formatting.YELLOW)))
                                     .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open echest " + target.getEntityName() + " " + (finalI - 1))).withItalic(true)))
                     .append(new LiteralText(")").formatted(Formatting.YELLOW));
+            textPage.addEntry(text);
             i++;
         }
-        int finalPage = page;
-        text.append(new LiteralText("\n<- ").formatted(Formatting.WHITE).styled(style -> style.withBold(true)))
-                .append(new LiteralText("Prev ").formatted(page > 0 ? Formatting.GOLD : Formatting.GRAY)
-                        .styled(style -> finalPage > 0 ? style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + finalPage)) : style))
-                .append(new LiteralText(String.valueOf(finalPage + 1)).formatted(Formatting.GREEN))
-                .append(new LiteralText(" / ").formatted(Formatting.GRAY))
-                .append(new LiteralText(String.valueOf(maxPage + 1)).formatted(Formatting.GREEN))
-                .append(new LiteralText(" Next").formatted(page == maxPage ? Formatting.GRAY : Formatting.GOLD)
-                        .styled(style -> finalPage == maxPage ? style : style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + (finalPage + 2)))))
-                .append(new LiteralText(" ->").formatted(Formatting.WHITE).styled(style -> style.withBold(true)));
-
-        source.sendFeedback(text, false);
+        textPage.sendPage(source.getPlayer(), page - 1, 5);
         return 1;
     }
 
@@ -289,28 +319,24 @@ public class InventoryCommand {
         return requestedPlayer;
     }
 
-    public static void getAllPlayerInventoriesAsync(boolean inv, Consumer<HashMap<ServerPlayerEntity, Inventory>> consumer) throws ExecutionException, InterruptedException {
+    public static void getAllPlayerInventoriesAsync(Consumer<HashMap<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>>> consumer) {
         CompletableFuture.supplyAsync(() -> {
-            HashMap<ServerPlayerEntity, Inventory> inventories = new HashMap<>();
+            HashMap<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>> inventories = new HashMap<>();
             PlayerManager playerManager = InvView.getMinecraftServer().getPlayerManager();
-            System.out.println("Trying to get WorldSaveHandler");
             WorldSaveHandler saveHandler = ((PlayerManagerAccessor) playerManager).getWorldSaveHandler();
-            System.out.println("Got WorldSaveHandler, listing player data files");
             String[] ids = saveHandler.getSavedPlayerIds();
-            System.out.println("Got player list " + ids.length);
             for (String id : ids) {
-                System.out.println("Loading inventory for " + id);
                 if (!id.matches("[\\w]{8}-[\\w]{4}-[\\w]{4}-[\\w]{4}-[\\w]{12}")) continue;
                 UUID uuid = UUID.fromString(id);
                 GameProfile gameProfile = InvView.getMinecraftServer().getUserCache().getByUuid(uuid);
                 if (gameProfile == null) continue;
                 ServerPlayerEntity player = getPlayer(Collections.singletonList(gameProfile));
                 try {
-                    inventories.put(player, getInventory(player, -1, inv));
-                } catch (CommandSyntaxException ignored) {
+                    inventories.put(player, new Pair<>((LinkedInventory) getInventory(player, -1, true), (LinkedEnderchest) getInventory(player, -1, false)));
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
-            System.out.println("DONE!");
             consumer.accept(inventories);
             return inventories;
         });
