@@ -41,7 +41,7 @@ public class InventoryManager {
                 listTag = (ListTag) compoundTag.get("inventories");
             }
             if (listTag == null) listTag = new ListTag();
-            listTag.add(player.inventory.serialize(new ListTag()));
+            listTag.add(player.getInventory().serialize(new ListTag()));
             CompoundTag newTag = new CompoundTag();
             newTag.put("inventories", listTag);
             File file = File.createTempFile(player.getUuidAsString() + "-", ".dat", SAVE_PATH);

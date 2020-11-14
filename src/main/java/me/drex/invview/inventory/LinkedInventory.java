@@ -3,6 +3,7 @@ package me.drex.invview.inventory;
 import me.drex.invview.InventoryManager;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -15,7 +16,7 @@ public class LinkedInventory extends PlayerInventory {
     public LinkedInventory(ServerPlayerEntity target) {
         super(target);
         this.target = target;
-        this.linkedInventory = target.inventory;
+        this.linkedInventory = target.getInventory();
     }
 
     @Override
@@ -52,4 +53,5 @@ public class LinkedInventory extends PlayerInventory {
     public boolean canPlayerUse(PlayerEntity player) {
         return true;
     }
+
 }

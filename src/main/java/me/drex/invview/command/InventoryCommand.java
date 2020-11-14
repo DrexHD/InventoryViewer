@@ -1,7 +1,6 @@
 package me.drex.invview.command;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -14,29 +13,38 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import jdk.internal.jline.internal.Nullable;
 import me.drex.invview.InvView;
-import me.drex.invview.manager.EntryManager;
-import me.drex.invview.manager.SaveableEntry;
 import me.drex.invview.inventory.LinkedEnderchest;
 import me.drex.invview.inventory.LinkedInventory;
 import me.drex.invview.inventory.SavedEnderchest;
 import me.drex.invview.inventory.SavedInventory;
+import me.drex.invview.manager.EntryManager;
+import me.drex.invview.manager.SaveableEntry;
+import me.drex.invview.mixin.PlayerManagerAccessor;
+import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.GameProfileArgumentType;
+import net.minecraft.command.argument.ItemStackArgument;
+import net.minecraft.command.argument.ItemStackArgumentType;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
-import net.minecraft.server.command.CommandSource;
+import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.world.WorldSaveHandler;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.word;
 import static net.minecraft.server.command.CommandManager.argument;
@@ -96,6 +104,17 @@ public class InventoryCommand {
             open.then(type);
             inventory.then(open);
         }
+        {
+            final RequiredArgumentBuilder<ServerCommandSource, String> type = typeArgument();
+            type.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), getInventoryType(ctx)));
+            final RequiredArgumentBuilder<ServerCommandSource, Integer> amount = RequiredArgumentBuilder.argument("amount", IntegerArgumentType.integer(1));
+            final RequiredArgumentBuilder<ServerCommandSource, ItemStackArgument> item = RequiredArgumentBuilder.argument("item", ItemStackArgumentType.itemStack());
+            final LiteralArgumentBuilder<ServerCommandSource> scan = LiteralArgumentBuilder.literal("scan");
+            amount.then(type);
+            item.then(amount);
+            scan.then(item);
+            inventory.then(scan);
+        }
         inventory.executes(ctx -> showUsage(ctx.getSource()));
         dispatcher.register(inventory);
     }
@@ -106,9 +125,25 @@ public class InventoryCommand {
         return 1;
     }
 
+    private static int scan(ServerCommandSource source, Item item, int amount, InventoryType inventoryType) throws CommandSyntaxException {
+        try {
+            getAllPlayerInventoriesAsync(inventoryType.equals(InventoryType.ENDERCHEST), map -> {
+                for (Map.Entry<ServerPlayerEntity, Inventory> entry : map.entrySet()) {
+                    int count = entry.getValue() instanceof LinkedEnderchest ? ((LinkedEnderchest) entry.getValue()).countAll(item) : entry.getValue().count(item);
+                    if (count >= amount) {
+                        source.sendFeedback(new LiteralText("Found " + count + " in " + entry.getKey().getEntityName() + "'s " + inventoryType.name().toLowerCase()), false);
+                    }
+                }
+            });
+        } catch (ExecutionException | InterruptedException e) {
+            throw new SimpleCommandExceptionType(new LiteralText(e.getMessage())).create();
+        }
+        return 1;
+    }
+
     private static int save(ServerCommandSource source, Collection<GameProfile> targets) {
         ServerPlayerEntity target = getPlayer(targets);
-        SaveableEntry entry = new SaveableEntry(target.inventory, target.getEnderChestInventory(), new Date(), "custom");
+        SaveableEntry entry = new SaveableEntry(target.getInventory(), target.getEnderChestInventory(), new Date(), "custom");
         EntryManager.instance.addEntry(target.getUuid(), entry);
         source.sendFeedback(new LiteralText("Saved inventory for ").formatted(Formatting.YELLOW).append(new LiteralText(target.getEntityName()).formatted(Formatting.GOLD)), false);
         return 1;
@@ -164,8 +199,8 @@ public class InventoryCommand {
         }
         int finalPage = page;
         text.append(new LiteralText("\n<- ").formatted(Formatting.WHITE).styled(style -> style.withBold(true)))
-                .append(new LiteralText("Prev " ).formatted(page > 0 ? Formatting.GOLD : Formatting.GRAY)
-                    .styled(style -> finalPage > 0 ? style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + finalPage)) : style))
+                .append(new LiteralText("Prev ").formatted(page > 0 ? Formatting.GOLD : Formatting.GRAY)
+                        .styled(style -> finalPage > 0 ? style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview list " + target.getEntityName() + " " + finalPage)) : style))
                 .append(new LiteralText(String.valueOf(finalPage + 1)).formatted(Formatting.GREEN))
                 .append(new LiteralText(" / ").formatted(Formatting.GRAY))
                 .append(new LiteralText(String.valueOf(maxPage + 1)).formatted(Formatting.GREEN))
@@ -187,7 +222,7 @@ public class InventoryCommand {
             for (ItemStack itemStack : itemStacks) {
                 if (itemStack == ItemStack.EMPTY) continue;
                 if (itemCount < maxItems) {
-                    hover.append(((MutableText)itemStack.getName()).formatted(formattings.get(i))).append(new LiteralText("\n"));
+                    hover.append(((MutableText) itemStack.getName()).formatted(formattings.get(i))).append(new LiteralText("\n"));
                 }
                 itemCount++;
             }
@@ -205,7 +240,7 @@ public class InventoryCommand {
         boolean isInv = inventoryType == InventoryType.INVENTORY;
         Inventory inventory = getInventory(target, id, isInv);
         opener.openHandledScreen(new SimpleNamedScreenHandlerFactory((syncId, inv, playerEntity) ->
-                new GenericContainerScreenHandler(isInv ? ScreenHandlerType.GENERIC_9X5 : ScreenHandlerType.GENERIC_9X3, syncId, opener.inventory, inventory, isInv ? 5 : 3),
+                new GenericContainerScreenHandler(isInv ? ScreenHandlerType.GENERIC_9X5 : ScreenHandlerType.GENERIC_9X3, syncId, opener.getInventory(), inventory, isInv ? 5 : 3),
                 target.getDisplayName()
         ));
         return 1;
@@ -215,7 +250,7 @@ public class InventoryCommand {
         ServerPlayerEntity opener = openers == null ? source.getPlayer() : getOnlinePlayer(openers);
         ServerPlayerEntity target = getPlayer(targets);
         PlayerInventory inventory = (PlayerInventory) getInventory(target, id, true);
-        opener.inventory.deserialize(inventory.serialize(new ListTag()));
+        opener.getInventory().deserialize(inventory.serialize(new ListTag()));
         source.sendFeedback(new LiteralText("Loaded ").formatted(Formatting.YELLOW)
                 .append(new LiteralText(target.getEntityName() + "'s").formatted(Formatting.GOLD))
                 .append(new LiteralText(" inventory for ").formatted(Formatting.YELLOW))
@@ -252,6 +287,33 @@ public class InventoryCommand {
             InvView.getMinecraftServer().getPlayerManager().loadPlayerData(requestedPlayer);
         }
         return requestedPlayer;
+    }
+
+    public static void getAllPlayerInventoriesAsync(boolean inv, Consumer<HashMap<ServerPlayerEntity, Inventory>> consumer) throws ExecutionException, InterruptedException {
+        CompletableFuture.supplyAsync(() -> {
+            HashMap<ServerPlayerEntity, Inventory> inventories = new HashMap<>();
+            PlayerManager playerManager = InvView.getMinecraftServer().getPlayerManager();
+            System.out.println("Trying to get WorldSaveHandler");
+            WorldSaveHandler saveHandler = ((PlayerManagerAccessor) playerManager).getWorldSaveHandler();
+            System.out.println("Got WorldSaveHandler, listing player data files");
+            String[] ids = saveHandler.getSavedPlayerIds();
+            System.out.println("Got player list " + ids.length);
+            for (String id : ids) {
+                System.out.println("Loading inventory for " + id);
+                if (!id.matches("[\\w]{8}-[\\w]{4}-[\\w]{4}-[\\w]{4}-[\\w]{12}")) continue;
+                UUID uuid = UUID.fromString(id);
+                GameProfile gameProfile = InvView.getMinecraftServer().getUserCache().getByUuid(uuid);
+                if (gameProfile == null) continue;
+                ServerPlayerEntity player = getPlayer(Collections.singletonList(gameProfile));
+                try {
+                    inventories.put(player, getInventory(player, -1, inv));
+                } catch (CommandSyntaxException ignored) {
+                }
+            }
+            System.out.println("DONE!");
+            consumer.accept(inventories);
+            return inventories;
+        });
     }
 
     public static RequiredArgumentBuilder<ServerCommandSource, String> typeArgument() {
