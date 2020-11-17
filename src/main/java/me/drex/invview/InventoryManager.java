@@ -1,10 +1,7 @@
 package me.drex.invview;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
-import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
@@ -22,8 +19,8 @@ import java.io.FileInputStream;
 
 public class InventoryManager {
 
-    public static MinecraftServer minecraftServer = InvView.getMinecraftServer();
     private static final File SAVE_PATH = new File(InvView.getDirectory() + "/inventories");
+    public static MinecraftServer minecraftServer = InvView.getMinecraftServer();
 
     public static void savePlayerData(ServerPlayerEntity player) {
         File playerDataDir = minecraftServer.getSavePath(WorldSavePath.PLAYERDATA).toFile();
@@ -65,7 +62,7 @@ public class InventoryManager {
     public static int countAll(Inventory inventory, Item item) {
         int i = 0;
         for (int j = 0; j < inventory.size(); ++j) {
-            ItemStack itemStack = inventory.getStack(j);
+/*            ItemStack itemStack = inventory.getStack(j);
             Item item1 = itemStack.getItem();
             if (item1.equals(item)) {
                 i += itemStack.getCount();
@@ -84,9 +81,32 @@ public class InventoryManager {
                         }
                     }
                 }
-            }
+            }*/
+            i += count(inventory.getStack(j), item);
         }
         return i;
+    }
+
+    public static int count(ItemStack itemStack, Item lookingFor) {
+        int count = 0;
+        CompoundTag compoundTag = itemStack.getTag();
+        if (itemStack.getItem().equals(lookingFor)) count += itemStack.getCount();
+        if (compoundTag == null) return count;
+        CompoundTag items;
+        if (compoundTag.contains("BlockEntityTag")) {
+            items = compoundTag.getCompound("BlockEntityTag");
+        } else if (compoundTag.contains("Items")) {
+            items = compoundTag;
+        } else {
+            return count;
+        }
+        DefaultedList<ItemStack> itemList = DefaultedList.ofSize(items.getList("Items", 10).size(), ItemStack.EMPTY);
+        Inventories.fromTag(items, itemList);
+        for (ItemStack item : itemList) {
+            count += count(item, lookingFor);
+        }
+        return count;
+
     }
 
 }
