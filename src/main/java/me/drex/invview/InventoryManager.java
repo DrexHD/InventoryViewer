@@ -62,26 +62,6 @@ public class InventoryManager {
     public static int countAll(Inventory inventory, Item item) {
         int i = 0;
         for (int j = 0; j < inventory.size(); ++j) {
-/*            ItemStack itemStack = inventory.getStack(j);
-            Item item1 = itemStack.getItem();
-            if (item1.equals(item)) {
-                i += itemStack.getCount();
-            } else {
-                if (item1 instanceof BlockItem) {
-                    Block block = ((BlockItem) item1).getBlock();
-                    if (block instanceof ShulkerBoxBlock) {
-                        if (itemStack.getTag() != null) {
-                            DefaultedList<ItemStack> itemStacks = DefaultedList.ofSize(inventory.size(), ItemStack.EMPTY);
-                            Inventories.fromTag(itemStack.getTag().getCompound("BlockEntityTag"), itemStacks);
-                            for (ItemStack itemStack2 : itemStacks) {
-                                if (itemStack2.getItem().equals(item)) {
-                                    i += itemStack2.getCount();
-                                }
-                            }
-                        }
-                    }
-                }
-            }*/
             i += count(inventory.getStack(j), item);
         }
         return i;
