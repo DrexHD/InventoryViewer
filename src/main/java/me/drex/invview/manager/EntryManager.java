@@ -16,11 +16,7 @@ public class EntryManager extends HashMap<UUID, List<SaveableEntry>> {
 
     public static EntryManager instance;
 
-    public static void load() throws IOException {
-        instance = new EntryManager((InvView.DATA.exists() ? NbtIo.readCompressed(new FileInputStream(InvView.DATA)) : new CompoundTag()));
-    }
-
-    public EntryManager (CompoundTag tag) {
+    public EntryManager(CompoundTag tag) {
         for (String key : tag.getKeys()) {
             ListTag playerEntry = (ListTag) tag.get(key);
             UUID uuid = UUID.fromString(key);
@@ -30,6 +26,10 @@ public class EntryManager extends HashMap<UUID, List<SaveableEntry>> {
             }
             this.put(uuid, entries);
         }
+    }
+
+    public static void load() throws IOException {
+        instance = new EntryManager((InvView.DATA.exists() ? NbtIo.readCompressed(new FileInputStream(InvView.DATA)) : new CompoundTag()));
     }
 
     public CompoundTag toNBT() {

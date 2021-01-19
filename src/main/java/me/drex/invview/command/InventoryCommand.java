@@ -21,6 +21,7 @@ import me.drex.invview.inventory.SavedInventory;
 import me.drex.invview.manager.EntryManager;
 import me.drex.invview.manager.SaveableEntry;
 import me.drex.invview.mixin.PlayerManagerAccessor;
+import me.drex.invview.mixin.WorldSaveHandlerMixin;
 import me.drex.invview.util.TextPage;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.GameProfileArgumentType;
@@ -30,7 +31,9 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
@@ -44,6 +47,8 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.WorldSaveHandler;
 
+import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -145,31 +150,43 @@ public class InventoryCommand {
                             .append(new LiteralText("]-").formatted(Formatting.GOLD)));
             TextPage textPage = new TextPage(title, null, "/invview scan " + Registry.ITEM.getId(item).getPath() + " " + amount + " %s");
             getAllPlayerInventoriesAsync(map -> {
-                for (Map.Entry<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>> entry : map.entrySet()) {
+                for (Map.Entry<UUID, Pair<SavedInventory, SavedEnderchest>> entry : map.entrySet()) {
+                    GameProfile gameProfile = InvView.getMinecraftServer().getUserCache().getByUuid(entry.getKey());
+                    if (gameProfile == null) gameProfile = new GameProfile(entry.getKey(), null);
+                    MutableText name;
+                    String nameArg;
+                    if (gameProfile.getName() == null) {
+                        name = new LiteralText(gameProfile.getId().toString()).formatted(Formatting.GOLD, Formatting.ITALIC)
+                                .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, entry.getKey().toString())));
+                        nameArg = gameProfile.getId().toString();
+                    } else {
+                        name = new LiteralText(gameProfile.getName()).formatted(Formatting.GOLD);
+                        nameArg = gameProfile.getName();
+                    }
                     int invCount = InventoryManager.countAll(entry.getValue().getLeft(), item);
                     int eChestCount = InventoryManager.countAll(entry.getValue().getRight(), item);
                     if (invCount >= amount) {
                         MutableText text = new LiteralText("Found ").formatted(Formatting.YELLOW)
                                 .append(new LiteralText(String.valueOf(invCount)).formatted(Formatting.GOLD))
                                 .append(new LiteralText(" in ").formatted(Formatting.YELLOW))
-                                .append(new LiteralText(entry.getKey().getEntityName()).formatted(Formatting.GOLD))
+                                .append(name)
                                 .append(new LiteralText("'s inventory ").formatted(Formatting.YELLOW))
                                 .append(new LiteralText("open").formatted(Formatting.AQUA)
                                         .styled(style -> style
                                                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this inventory").formatted(Formatting.YELLOW)))
-                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open inv " + entry.getKey().getEntityName())).withItalic(true)));
+                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open inv " + nameArg)).withItalic(true)));
                         textPage.addEntry(text);
                     }
                     if (eChestCount >= amount) {
                         MutableText text = new LiteralText("Found ").formatted(Formatting.YELLOW)
                                 .append(new LiteralText(String.valueOf(eChestCount)).formatted(Formatting.GOLD))
                                 .append(new LiteralText(" in ").formatted(Formatting.YELLOW))
-                                .append(new LiteralText(entry.getKey().getEntityName()).formatted(Formatting.GOLD))
+                                .append(name)
                                 .append(new LiteralText("'s enderchest ").formatted(Formatting.YELLOW))
                                 .append(new LiteralText("open").formatted(Formatting.AQUA)
                                         .styled(style -> style
                                                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this enderchest").formatted(Formatting.YELLOW)))
-                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open echest " + entry.getKey().getEntityName())).withItalic(true)));
+                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open echest " + nameArg)).withItalic(true)));
                         textPage.addEntry(text);
                     }
                 }
@@ -191,7 +208,7 @@ public class InventoryCommand {
 
     private static int save(ServerCommandSource source, Collection<GameProfile> targets) {
         ServerPlayerEntity target = getPlayer(targets);
-        SaveableEntry entry = new SaveableEntry(target.getInventory(), target.getEnderChestInventory(), new Date(), "custom");
+        SaveableEntry entry = new SaveableEntry(target.getInventory(), target.getEnderChestInventory(), new Date(), "custom", null);
         EntryManager.instance.addEntry(target.getUuid(), entry);
         source.sendFeedback(new LiteralText("Saved inventory for ").formatted(Formatting.YELLOW).append(new LiteralText(target.getEntityName()).formatted(Formatting.GOLD)), false);
         return 1;
@@ -216,7 +233,8 @@ public class InventoryCommand {
                     .styled(style -> style
                             .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(new SimpleDateFormat("MMM dd yyyy").format(entry.date)).formatted(Formatting.GOLD))))
                     .append(new LiteralText(" (").formatted(Formatting.YELLOW))
-                    .append(new LiteralText(entry.reason.substring(0, 1).toUpperCase() + entry.reason.substring(1)).formatted(Formatting.GOLD))
+                    .append(new LiteralText(entry.reason.substring(0, 1).toUpperCase() + entry.reason.substring(1)).formatted(Formatting.GOLD)
+                            .styled(style -> entry.description.isPresent() ? style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(entry.description.get()).formatted(Formatting.YELLOW))) : style))
                     .append(new LiteralText(") ").formatted(Formatting.YELLOW))
                     .append(new LiteralText("Inv: (").formatted(Formatting.YELLOW))
                     .append(formatInventory(ImmutableList.of(entry.inventory.main, entry.inventory.armor, entry.inventory.offHand)))
@@ -319,7 +337,7 @@ public class InventoryCommand {
         return requestedPlayer;
     }
 
-    public static void getAllPlayerInventoriesAsync(Consumer<HashMap<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>>> consumer) {
+    public static void getAllPlayerInventoriesAsync$2(Consumer<HashMap<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>>> consumer) {
         CompletableFuture.supplyAsync(() -> {
             HashMap<ServerPlayerEntity, Pair<LinkedInventory, LinkedEnderchest>> inventories = new HashMap<>();
             PlayerManager playerManager = InvView.getMinecraftServer().getPlayerManager();
@@ -335,6 +353,35 @@ public class InventoryCommand {
                     inventories.put(player, new Pair<>((LinkedInventory) getInventory(player, -1, true), (LinkedEnderchest) getInventory(player, -1, false)));
                 } catch (Exception e) {
                     e.printStackTrace();
+                }
+            }
+            consumer.accept(inventories);
+            return inventories;
+        });
+    }
+
+    public static void getAllPlayerInventoriesAsync(Consumer<HashMap<UUID, Pair<SavedInventory, SavedEnderchest>>> consumer) {
+        CompletableFuture.supplyAsync(() -> {
+            HashMap<UUID, Pair<SavedInventory, SavedEnderchest>> inventories = new HashMap<>();
+            PlayerManager playerManager = InvView.getMinecraftServer().getPlayerManager();
+            WorldSaveHandler saveHandler = ((PlayerManagerAccessor) playerManager).getWorldSaveHandler();
+            String[] ids = saveHandler.getSavedPlayerIds();
+            for (String id : ids) {
+                if (!id.matches("[\\w]{8}-[\\w]{4}-[\\w]{4}-[\\w]{4}-[\\w]{12}")) continue;
+                UUID uuid = UUID.fromString(id);
+                File file = new File(((WorldSaveHandlerMixin) saveHandler).getPlayerDataDir(), id + ".dat");
+                if (file.exists() && file.isFile()) {
+                    try {
+                        CompoundTag tag = NbtIo.readCompressed(file);
+                        ListTag listTag = tag.getList("Inventory", 10);
+                        SavedInventory inventory = new SavedInventory(listTag);
+                        if (tag.contains("EnderItems", 9)) {
+                            SavedEnderchest enderchest = new SavedEnderchest(tag.getList("EnderItems", 10));
+                            inventories.put(uuid, new Pair<>(inventory, enderchest));
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             consumer.accept(inventories);
