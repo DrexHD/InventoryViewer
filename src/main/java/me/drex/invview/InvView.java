@@ -12,7 +12,7 @@ import java.io.IOException;
 
 public class InvView implements ModInitializer {
     private static MinecraftServer minecraftServer;
-    public static final File DATA = new File(InvView.getDirectory() + "/config/inventories.dat");
+    public static final File DATA_DIRECTORY = new File(InvView.getDirectory() + "/config/inventories");
 
     public static MinecraftServer getMinecraftServer() {
         return minecraftServer;
