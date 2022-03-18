@@ -6,6 +6,8 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.server.MinecraftServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,6 +15,7 @@ import java.io.IOException;
 public class InvView implements ModInitializer {
     private static MinecraftServer minecraftServer;
     public static final File DATA_DIRECTORY = new File(InvView.getDirectory() + "/config/inventories");
+    public static final Logger LOGGER = LogManager.getLogger("InvView");
 
     public static MinecraftServer getMinecraftServer() {
         return minecraftServer;
@@ -39,7 +42,6 @@ public class InvView implements ModInitializer {
     private void onLogicalServerStarting(MinecraftServer server) {
         minecraftServer = server;
     }
-
 
 
 }

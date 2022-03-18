@@ -1,18 +1,11 @@
 package me.drex.invview.inventory;
 
 import me.drex.invview.InventoryManager;
-import net.minecraft.block.Block;
-import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.EnderChestInventory;
-import net.minecraft.inventory.Inventories;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.collection.DefaultedList;
 
 public class LinkedEnderchest extends EnderChestInventory {
     private ServerPlayerEntity target;
@@ -30,8 +23,8 @@ public class LinkedEnderchest extends EnderChestInventory {
     }
 
     @Override
-    public void readTags(ListTag tags) {
-        enderChestInventory.readTags(tags);
+    public void readNbtList(NbtList tags) {
+        enderChestInventory.readNbtList(tags);
     }
 
     @Override

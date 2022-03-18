@@ -2,22 +2,23 @@ package me.drex.invview.inventory;
 
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.ListTag;
-
-import java.util.function.Predicate;
+import net.minecraft.nbt.NbtList;
 
 public class SavedInventory extends PlayerInventory {
 
-    public SavedInventory(ListTag listTag) {
+    public SavedInventory(NbtList NbtList) {
         super(null);
-        this.deserialize(listTag);
+        this.writeNbt(NbtList);
     }
 
     @Override
     public int size() {
         return 45;
+    }
+
+    @Override
+    public void onClose(PlayerEntity player) {
+        // TODO: Save data
     }
 
     @Override

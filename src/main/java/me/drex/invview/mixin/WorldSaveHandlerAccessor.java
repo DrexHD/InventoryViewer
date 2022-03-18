@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 import java.io.File;
 
 @Mixin(WorldSaveHandler.class)
-public interface WorldSaveHandlerMixin {
+public interface WorldSaveHandlerAccessor {
 
     @Accessor("playerDataDir")
     File getPlayerDataDir();

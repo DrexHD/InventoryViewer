@@ -7,7 +7,7 @@
     "LevelStorageSessionMixin",
     "PlayerManagerAccessor",
     "ServerPlayerEntityMixin",
-    "WorldSaveHandlerMixin"
+    "WorldSaveHandlerAccessor"
   ],
   "client": [
   ],

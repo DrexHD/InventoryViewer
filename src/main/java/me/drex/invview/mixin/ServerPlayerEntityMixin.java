@@ -22,10 +22,13 @@ public abstract class ServerPlayerEntityMixin extends PlayerEntity {
         super(world, pos, yaw, profile);
     }
 
-    @Inject(method = "onDeath", at = @At(value = "HEAD"))
-    public void inventoryViewer$onDeath(DamageSource source, CallbackInfo ci) {
-        SaveableEntry entry = new SaveableEntry(this.getInventory(), this.getEnderChestInventory(), new Date(), "death", this.getDamageTracker().getDeathMessage().asString());
-        EntryManager.instance.addEntry(this.getUuid(), entry);
+    @Inject(
+            method = "onDeath",
+            at = @At("HEAD")
+    )
+    public void onDeath(DamageSource source, CallbackInfo ci) {
+        SaveableEntry entry = new SaveableEntry(this.getInventory(), this.getEnderChestInventory(), new Date(), "death", source.getDeathMessage((ServerPlayerEntity) (Object) this).asString());
+        EntryManager.addEntry(this.getUuid(), entry);
     }
 
 }
