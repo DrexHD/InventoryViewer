@@ -9,7 +9,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 public class LinkedInventory extends PlayerInventory {
 
-
     private final ServerPlayerEntity target;
     private final PlayerInventory linkedInventory;
 

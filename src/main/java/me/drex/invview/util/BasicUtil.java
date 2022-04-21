@@ -16,23 +16,23 @@ public class BasicUtil {
     public static Text formatInventory(List<DefaultedList<ItemStack>> itemList) {
         int maxItems = 25;
         List<Formatting> formatting = Arrays.asList(Formatting.AQUA, Formatting.YELLOW, Formatting.RED);
-        MutableText hover = new LiteralText("");
+        MutableText hover = Text.literal("");
         int itemCount = 0;
         int i = 0;
         for (DefaultedList<ItemStack> itemStacks : itemList) {
             for (ItemStack itemStack : itemStacks) {
                 if (itemStack == ItemStack.EMPTY) continue;
                 if (itemCount < maxItems) {
-                    hover.append(((MutableText) itemStack.getName()).formatted(formatting.get(i))).append(new LiteralText("\n"));
+                    hover.append(((MutableText) itemStack.getName()).formatted(formatting.get(i))).append(Text.literal("\n"));
                 }
                 itemCount++;
             }
             i++;
         }
         if (itemCount > maxItems) {
-            hover.append(new LiteralText("... and " + (itemCount - maxItems) + " more ...").formatted(Formatting.GRAY));
+            hover.append(Text.literal("... and " + (itemCount - maxItems) + " more ...").formatted(Formatting.GRAY));
         }
-        return new LiteralText(String.valueOf(itemCount)).formatted(Formatting.GOLD).append(new LiteralText(" items").formatted(Formatting.YELLOW)).styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover)));
+        return Text.literal(String.valueOf(itemCount)).formatted(Formatting.GOLD).append(Text.literal(" items").formatted(Formatting.YELLOW)).styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover)));
     }
 
 }

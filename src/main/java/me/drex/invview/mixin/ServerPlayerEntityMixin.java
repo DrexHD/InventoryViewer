@@ -27,7 +27,7 @@ public abstract class ServerPlayerEntityMixin extends PlayerEntity {
             at = @At("HEAD")
     )
     public void onDeath(DamageSource source, CallbackInfo ci) {
-        SaveableEntry entry = new SaveableEntry(this.getInventory(), this.getEnderChestInventory(), new Date(), "death", source.getDeathMessage((ServerPlayerEntity) (Object) this).asString());
+        SaveableEntry entry = new SaveableEntry(this.getInventory(), this.getEnderChestInventory(), new Date(), "death", source.getDeathMessage((ServerPlayerEntity) (Object) this).getString());
         EntryManager.addEntry(this.getUuid(), entry);
     }
 

@@ -45,22 +45,22 @@ public class TextPage {
         //index
         int from = page * entriesPerPage;
         int to = Math.min(((page + 1) * entriesPerPage), entries);
-        MutableText message = new LiteralText("").append(title);
+        MutableText message = Text.literal("").append(title);
         int currentIndex = from + 1;
         for (Text text : this.entries.subList(from, to)) {
-            message.append(new LiteralText("\n" + String.format(this.number, currentIndex)).formatted(numberFormat)).append(text);
+            message.append(Text.literal("\n" + String.format(this.number, currentIndex)).formatted(numberFormat)).append(text);
             currentIndex++;
         }
         int finalPage = page;
-        message.append(new LiteralText("\n<- ").formatted(Formatting.WHITE).styled(style -> style.withBold(true)))
-                .append(new LiteralText("Prev ").formatted(page > 0 ? Formatting.GOLD : Formatting.GRAY)
+        message.append(Text.literal("\n<- ").formatted(Formatting.WHITE).styled(style -> style.withBold(true)))
+                .append(Text.literal("Prev ").formatted(page > 0 ? Formatting.GOLD : Formatting.GRAY)
                         .styled(style -> finalPage > 0 ? style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, String.format(this.command, finalPage))) : style))
-                .append(new LiteralText(String.valueOf(finalPage + 1)).formatted(Formatting.GREEN))
-                .append(new LiteralText(" / ").formatted(Formatting.GRAY))
-                .append(new LiteralText(String.valueOf(maxPage + 1)).formatted(Formatting.GREEN))
-                .append(new LiteralText(" Next").formatted(page == maxPage ? Formatting.GRAY : Formatting.GOLD)
+                .append(Text.literal(String.valueOf(finalPage + 1)).formatted(Formatting.GREEN))
+                .append(Text.literal(" / ").formatted(Formatting.GRAY))
+                .append(Text.literal(String.valueOf(maxPage + 1)).formatted(Formatting.GREEN))
+                .append(Text.literal(" Next").formatted(page == maxPage ? Formatting.GRAY : Formatting.GOLD)
                         .styled(style -> finalPage == maxPage ? style : style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, String.format(this.command, finalPage + 2)))))
-                .append(new LiteralText(" ->").formatted(Formatting.WHITE).styled(style -> style.withBold(true)));
+                .append(Text.literal(" ->").formatted(Formatting.WHITE).styled(style -> style.withBold(true)));
         player.sendMessage(message, false);
     }
 

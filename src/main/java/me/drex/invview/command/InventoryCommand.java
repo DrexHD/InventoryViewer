@@ -18,6 +18,7 @@ import me.drex.invview.manager.SaveableEntry;
 import me.drex.invview.mixin.PlayerManagerAccessor;
 import me.drex.invview.mixin.WorldSaveHandlerAccessor;
 import me.drex.invview.util.TextPage;
+import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.command.argument.ItemStackArgument;
@@ -37,6 +38,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Pair;
+import net.minecraft.util.registry.DynamicRegistryManager;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.WorldSaveHandler;
 import org.jetbrains.annotations.Nullable;
@@ -111,7 +113,7 @@ public class InventoryCommand {
             page.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), IntegerArgumentType.getInteger(ctx, "page"), false));
             final RequiredArgumentBuilder<ServerCommandSource, Integer> amount = RequiredArgumentBuilder.argument("amount", IntegerArgumentType.integer(1));
             amount.executes(ctx -> scan(ctx.getSource(), ItemStackArgumentType.getItemStackArgument(ctx, "item").getItem(), IntegerArgumentType.getInteger(ctx, "amount"), 1, false));
-            final RequiredArgumentBuilder<ServerCommandSource, ItemStackArgument> item = RequiredArgumentBuilder.argument("item", ItemStackArgumentType.itemStack());
+            final RequiredArgumentBuilder<ServerCommandSource, ItemStackArgument> item = RequiredArgumentBuilder.argument("item", ItemStackArgumentType.itemStack(new CommandRegistryAccess(DynamicRegistryManager.BUILTIN.get())));
             final LiteralArgumentBuilder<ServerCommandSource> scan = LiteralArgumentBuilder.literal("scan");
             page.then(confirm);
             amount.then(page);
@@ -124,18 +126,18 @@ public class InventoryCommand {
     }
 
     private static int showUsage(ServerCommandSource source) {
-        Text usage = new LiteralText("//usage").formatted(Formatting.GRAY);
+        Text usage = Text.literal("//usage").formatted(Formatting.GRAY);
         source.sendFeedback(usage, false);
         return 1;
     }
 
     private static int scan(ServerCommandSource source, Item item, int amount, int page, boolean confirm) throws CommandSyntaxException {
         if (confirm || cachedPage == null || (cachedItem != item) || (cachedAmount != amount)) {
-            MutableText title = new LiteralText("\n-[").formatted(Formatting.GOLD)
-                    .append(new LiteralText("Found Inventories (").formatted(Formatting.GREEN)
-                            .append(new TranslatableText(item.getTranslationKey()).formatted(Formatting.GREEN))
-                            .append(new LiteralText(")").formatted(Formatting.GREEN))
-                            .append(new LiteralText("]-").formatted(Formatting.GOLD)));
+            MutableText title = Text.literal("\n-[").formatted(Formatting.GOLD)
+                    .append(Text.literal("Found Inventories (").formatted(Formatting.GREEN)
+                            .append(Text.translatable(item.getTranslationKey()).formatted(Formatting.GREEN))
+                            .append(Text.literal(")").formatted(Formatting.GREEN))
+                            .append(Text.literal("]-").formatted(Formatting.GOLD)));
             TextPage textPage = new TextPage(title, null, "/invview scan " + Registry.ITEM.getId(item).getPath() + " " + amount + " %s");
             loadPlayerInventories().thenAccept(savedPlayerData -> {
                 for (SavedPlayerData playerData : savedPlayerData) {
@@ -147,36 +149,36 @@ public class InventoryCommand {
                     MutableText name;
                     String nameArg;
                     if (gameProfile.getName() == null) {
-                        name = new LiteralText(gameProfile.getId().toString()).formatted(Formatting.GOLD, Formatting.ITALIC)
+                        name = Text.literal(gameProfile.getId().toString()).formatted(Formatting.GOLD, Formatting.ITALIC)
                                 .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, playerData.uuid().toString())));
                         nameArg = gameProfile.getId().toString();
                     } else {
-                        name = new LiteralText(gameProfile.getName()).formatted(Formatting.GOLD);
+                        name = Text.literal(gameProfile.getName()).formatted(Formatting.GOLD);
                         nameArg = gameProfile.getName();
                     }
                     int invCount = InventoryManager.countAll(playerData.savedInventory(), item);
                     int eChestCount = InventoryManager.countAll(playerData.savedEnderchest(), item);
                     if (invCount >= amount) {
-                        MutableText text = new LiteralText("Found ").formatted(Formatting.YELLOW)
-                                .append(new LiteralText(String.valueOf(invCount)).formatted(Formatting.GOLD))
-                                .append(new LiteralText(" in ").formatted(Formatting.YELLOW))
+                        MutableText text = Text.literal("Found ").formatted(Formatting.YELLOW)
+                                .append(Text.literal(String.valueOf(invCount)).formatted(Formatting.GOLD))
+                                .append(Text.literal(" in ").formatted(Formatting.YELLOW))
                                 .append(name)
-                                .append(new LiteralText("'s inventory ").formatted(Formatting.YELLOW))
-                                .append(new LiteralText("open").formatted(Formatting.AQUA)
+                                .append(Text.literal("'s inventory ").formatted(Formatting.YELLOW))
+                                .append(Text.literal("open").formatted(Formatting.AQUA)
                                         .styled(style -> style
-                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this inventory").formatted(Formatting.YELLOW)))
+                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to open this inventory").formatted(Formatting.YELLOW)))
                                                 .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open inventory " + nameArg)).withItalic(true)));
                         textPage.addEntry(text);
                     }
                     if (eChestCount >= amount) {
-                        MutableText text = new LiteralText("Found ").formatted(Formatting.YELLOW)
-                                .append(new LiteralText(String.valueOf(eChestCount)).formatted(Formatting.GOLD))
-                                .append(new LiteralText(" in ").formatted(Formatting.YELLOW))
+                        MutableText text = Text.literal("Found ").formatted(Formatting.YELLOW)
+                                .append(Text.literal(String.valueOf(eChestCount)).formatted(Formatting.GOLD))
+                                .append(Text.literal(" in ").formatted(Formatting.YELLOW))
                                 .append(name)
-                                .append(new LiteralText("'s enderchest ").formatted(Formatting.YELLOW))
-                                .append(new LiteralText("open").formatted(Formatting.AQUA)
+                                .append(Text.literal("'s enderchest ").formatted(Formatting.YELLOW))
+                                .append(Text.literal("open").formatted(Formatting.AQUA)
                                         .styled(style -> style
-                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Click to open this enderchest").formatted(Formatting.YELLOW)))
+                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to open this enderchest").formatted(Formatting.YELLOW)))
                                                 .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invview open enderchest " + nameArg)).withItalic(true)));
                         textPage.addEntry(text);
                     }
@@ -201,7 +203,7 @@ public class InventoryCommand {
         ServerPlayerEntity target = getPlayer(targets);
         SaveableEntry entry = new SaveableEntry(target.getInventory(), target.getEnderChestInventory(), new Date(), "custom", null);
         EntryManager.addEntry(target.getUuid(), entry);
-        source.sendFeedback(new LiteralText("Saved inventory for ").formatted(Formatting.YELLOW).append(new LiteralText(target.getEntityName()).formatted(Formatting.GOLD)), false);
+        source.sendFeedback(Text.literal("Saved inventory for ").formatted(Formatting.YELLOW).append(Text.literal(target.getEntityName()).formatted(Formatting.GOLD)), false);
         return 1;
     }
 
@@ -221,10 +223,10 @@ public class InventoryCommand {
         ServerPlayerEntity target = getPlayer(targets);
         PlayerInventory inventory = (PlayerInventory) getInventory(target, id, InventoryType.INVENTORY);
         opener.getInventory().readNbt(inventory.writeNbt(new NbtList()));
-        source.sendFeedback(new LiteralText("Loaded ").formatted(Formatting.YELLOW)
-                .append(new LiteralText(target.getEntityName() + "'s").formatted(Formatting.GOLD))
-                .append(new LiteralText(" inventory for ").formatted(Formatting.YELLOW))
-                .append(new LiteralText(opener.getEntityName()).formatted(Formatting.GOLD)), false);
+        source.sendFeedback(Text.literal("Loaded ").formatted(Formatting.YELLOW)
+                .append(Text.literal(target.getEntityName() + "'s").formatted(Formatting.GOLD))
+                .append(Text.literal(" inventory for ").formatted(Formatting.YELLOW))
+                .append(Text.literal(opener.getEntityName()).formatted(Formatting.GOLD)), false);
         return 1;
     }
 
@@ -235,7 +237,7 @@ public class InventoryCommand {
         } else {
             List<SaveableEntry> entries = EntryManager.instance.getEntries(target.getUuid());
             if (id >= entries.size()) {
-                throw new SimpleCommandExceptionType(new LiteralText("Invalid inventory id")).create();
+                throw new SimpleCommandExceptionType(Text.literal("Invalid inventory id")).create();
             } else {
                 // TODO: Get rid of inventoryType == InventoryType.INVENTORY ?
                 inventory = inventoryType == InventoryType.INVENTORY ? new SavedInventory(entries.get(id).inventory.writeNbt(new NbtList())) : new SavedEnderchest(entries.get(id).enderChest.toNbtList());
@@ -248,7 +250,7 @@ public class InventoryCommand {
         GameProfile requestedProfile = profiles.iterator().next();
         ServerPlayerEntity requestedPlayer = InvView.getMinecraftServer().getPlayerManager().getPlayer(requestedProfile.getName());
         if (requestedPlayer == null)
-            throw new SimpleCommandExceptionType(new TranslatableText("argument.entity.notfound.player")).create();
+            throw new SimpleCommandExceptionType(Text.translatable("argument.entity.notfound.player")).create();
         return requestedPlayer;
     }
 
@@ -341,7 +343,7 @@ public class InventoryCommand {
         String input = StringArgumentType.getString(ctx, "type");
         InventoryType inventoryType = InventoryType.byId(input);
         if (inventoryType == null)
-            throw new SimpleCommandExceptionType(new LiteralText("Unknown inventory type")).create();
+            throw new SimpleCommandExceptionType(Text.literal("Unknown inventory type")).create();
         return inventoryType;
     }
 
